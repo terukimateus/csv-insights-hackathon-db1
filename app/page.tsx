@@ -1,99 +1,113 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Upload, FileSpreadsheet, BarChart3, Loader2 } from "lucide-react"
-import { DynamicChart } from "@/components/dynamic-chart"
+import { useState, useRef } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, FileSpreadsheet, BarChart3, Loader2 } from "lucide-react";
+import { DynamicChart } from "@/components/dynamic-chart";
 
 interface ChartInsight {
-  type: "bar_chart" | "pie_chart" | "line_chart"
-  summary: string
-  data: Array<Record<string, string | number>>
+  type: "bar_chart" | "pie_chart" | "line_chart";
+  summary: string;
+  data: Array<Record<string, string | number>>;
   chart_representation: {
-    x_axis?: string
-    y_axis?: string
-    dataKey?: string
-    nameKey?: string
-  }
+    x_axis?: string;
+    y_axis?: string;
+    dataKey?: string;
+    nameKey?: string;
+  };
 }
 
 interface AnalysisResult {
-  success: boolean
-  fileName: string
-  insights: ChartInsight[]
+  success: boolean;
+  fileName: string;
+  summary?: string;
+  insights: ChartInsight[];
 }
 
 export default function CSVDashboard() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const printRef = useRef<HTMLDivElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
+    null
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [insightQuery, setInsightQuery] = useState<string>("");
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.target.files?.[0];
     if (file) {
       if (file.name.endsWith(".csv") || file.type === "text/csv") {
-        setSelectedFile(file)
-        setError(null)
-        setAnalysisResult(null)
+        setSelectedFile(file);
+        setError(null);
+        setAnalysisResult(null);
       } else {
-        setError("Please select a valid CSV file")
-        setSelectedFile(null)
+        setError("Selecione um arquivo CSV válido");
+        setSelectedFile(null);
       }
     }
-  }
+  };
 
   const handleDragOver = (event: React.DragEvent) => {
-    event.preventDefault()
-  }
+    event.preventDefault();
+  };
 
   const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault()
-    const file = event.dataTransfer.files[0]
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
     if (file) {
       if (file.name.endsWith(".csv") || file.type === "text/csv") {
-        setSelectedFile(file)
-        setError(null)
-        setAnalysisResult(null)
+        setSelectedFile(file);
+        setError(null);
+        setAnalysisResult(null);
       } else {
-        setError("Please select a valid CSV file")
-        setSelectedFile(null)
+        setError("Selecione um arquivo CSV válido");
+        setSelectedFile(null);
       }
     }
-  }
+  };
 
   const analyzeCSV = async () => {
-    if (!selectedFile) return
+    if (!selectedFile) return;
 
-    setIsAnalyzing(true)
-    setError(null)
+    setIsAnalyzing(true);
+    setError(null);
 
     try {
-      const formData = new FormData()
-      formData.append("csvFile", selectedFile)
+      const formData = new FormData();
+      formData.append("csvFile", selectedFile);
+      if (insightQuery.trim()) {
+        formData.append("insightQuery", insightQuery.trim());
+      }
 
       const response = await fetch("/api/csvs/upload", {
         method: "POST",
         body: formData,
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (result.success) {
-        setAnalysisResult(result)
+        setAnalysisResult(result);
       } else {
-        setError(result.error || "Failed to analyze CSV")
+        setError(result.error || "Falha ao analisar o CSV");
       }
     } catch (err) {
-      setError("Failed to analyze CSV file")
-      console.error("[v0] Analysis error:", err)
+      setError("Falha ao analisar o arquivo CSV");
+      console.error("[v0] Analysis error:", err);
     } finally {
-      setIsAnalyzing(false)
+      setIsAnalyzing(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -105,7 +119,8 @@ export default function CSVDashboard() {
             <h1 className="text-3xl font-bold text-balance">CSV Inteligente</h1>
           </div>
           <p className="text-muted-foreground text-lg">
-            Upload your CSV file and get AI-powered insights with interactive charts
+            Envie seu arquivo CSV e obtenha insights com IA em gráficos
+            interativos
           </p>
         </div>
 
@@ -114,9 +129,11 @@ export default function CSVDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Upload CSV File
+              Enviar arquivo CSV
             </CardTitle>
-            <CardDescription>Drag & drop your CSV file here, or click to select</CardDescription>
+            <CardDescription>
+              Arraste e solte seu arquivo CSV aqui ou clique para selecionar
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div
@@ -125,7 +142,13 @@ export default function CSVDashboard() {
               onDrop={handleDrop}
               onClick={() => document.getElementById("csv-upload")?.click()}
             >
-              <input id="csv-upload" type="file" accept=".csv" onChange={handleFileSelect} className="hidden" />
+              <input
+                id="csv-upload"
+                type="file"
+                accept=".csv"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
 
               <div className="space-y-4">
                 <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -134,13 +157,22 @@ export default function CSVDashboard() {
 
                 {selectedFile ? (
                   <div className="space-y-2">
-                    <p className="font-medium text-foreground">{selectedFile.name}</p>
-                    <p className="text-sm text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                    <p className="font-medium text-foreground">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {(selectedFile.size / 1024).toFixed(1)} KB
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="font-medium text-foreground">Drag & drop your CSV file here, or click to select</p>
-                    <p className="text-sm text-muted-foreground">Only CSV files are supported</p>
+                    <p className="font-medium text-foreground">
+                      Arraste e solte seu arquivo CSV aqui ou clique para
+                      selecionar
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Somente arquivos CSV são suportados
+                    </p>
                   </div>
                 )}
               </div>
@@ -152,17 +184,44 @@ export default function CSVDashboard() {
               </div>
             )}
 
+            {/* Optional user guidance for insights */}
+            <div className="mt-6 space-y-2">
+              <label
+                htmlFor="insight-topics"
+                className="block text-sm font-medium"
+              >
+                Foque nos seguintes temas (opcional)
+              </label>
+              <input
+                id="insight-topics"
+                type="text"
+                value={insightQuery}
+                onChange={(e) => setInsightQuery(e.target.value)}
+                placeholder="ex.: quantidade de vendas, valor das vendas, ticket médio"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                Vamos priorizar insights relacionados a esses termos quando
+                possível, sem inventar números.
+              </p>
+            </div>
+
             <div className="mt-6">
-              <Button onClick={analyzeCSV} disabled={!selectedFile || isAnalyzing} className="w-full" size="lg">
+              <Button
+                onClick={analyzeCSV}
+                disabled={!selectedFile || isAnalyzing}
+                className="w-full"
+                size="lg"
+              >
                 {isAnalyzing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Analyzing CSV...
+                    Analisando CSV...
                   </>
                 ) : (
                   <>
                     <BarChart3 className="mr-2 h-4 w-4" />
-                    Analyze CSV
+                    Analisar CSV
                   </>
                 )}
               </Button>
@@ -172,20 +231,41 @@ export default function CSVDashboard() {
 
         {/* Results Section */}
         {analysisResult && (
-          <div className="space-y-6">
+          <div ref={printRef} className="space-y-6 print-area">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-balance">Analysis Results</h2>
-              <p className="text-muted-foreground">AI-generated insights from {analysisResult.fileName}</p>
+              <h2 className="text-2xl font-bold text-balance">
+                Resultados da Análise
+              </h2>
+              <p className="text-muted-foreground">
+                Insights gerados por IA a partir de {analysisResult.fileName}
+              </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Actions (not printed) */}
+            <div className="flex justify-end no-print">
+              <Button variant="default" onClick={() => window.print()}>
+                Exportar PDF
+              </Button>
+            </div>
+
+            {analysisResult.summary && (
+              <Card className="bg-muted/30 border-border">
+                <CardHeader>
+                  <CardTitle className="text-lg">Resumo dos insights</CardTitle>
+                  <CardDescription className="text-pretty">
+                    {analysisResult.summary}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
               {analysisResult.insights.map((insight, index) => (
                 <Card key={index} className="overflow-hidden">
                   <CardHeader>
                     <CardTitle className="text-lg text-balance">
-                      {insight.type.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                      {insight.summary}
                     </CardTitle>
-                    <CardDescription className="text-pretty">{insight.summary}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="h-64">
@@ -198,6 +278,27 @@ export default function CSVDashboard() {
           </div>
         )}
       </div>
+      {/* Print styles */}
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .print-area,
+          .print-area * {
+            visibility: visible;
+          }
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
-  )
+  );
 }
